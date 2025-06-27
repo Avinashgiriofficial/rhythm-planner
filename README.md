@@ -43,3 +43,12 @@ As students ourselves, we realized that most planning tools are robotic. They do
 Rhythm was built to change that.
 
 This beta version is the **first public step** in a much bigger journey — and we’re just getting started.
+---
+
+## 📌 Version History
+
+### v1 Beta Release – June 27, 2025
+- Full working Streamlit UI
+- Emotion-based motivation engine
+- Keyword-based problem detection + quotes
+- Balanced daily planner logic
