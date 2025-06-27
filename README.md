@@ -1,6 +1,6 @@
 # rhythm-planner
 An emotional and personalized daily planning tool for students.
-# 🎧 Rhythm – Beta Release
+# 🎧 Rhythm – v1 Beta Release
 
 ## 🧠 What Is Rhythm?
 
