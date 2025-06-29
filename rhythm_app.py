@@ -1,4 +1,5 @@
-# BETA VERSION OF MY RHYTHM
+#---------BETA VERSION OF RHYTHM-------------
+
 import streamlit as st
 from datetime import datetime, date, timedelta
 from streamlit_calendar import calendar
@@ -27,21 +28,27 @@ calendar(
 )
 
 # ----------------- HEADER / INPUTS --------------------------
-st.markdown("👋 Welcome back! Let’s get your rhythm flowing today.")
-st.title("🎧 Rhythm – Your Smart Daily Planner")
-st.markdown("Enter your daily routine and emotion to generate your personalized schedule.")
 
-wake_time  = st.time_input("⏰ Wake‑up Time",  value=datetime.strptime("06:00", "%H:%M").time())
-sleep_time = st.time_input("🌙 Sleep Time",    value=datetime.strptime("22:00", "%H:%M").time())
+today_tab, week_tab, feedback_tab = st.tabs(["📅 Today", "📈 Weekly Stats", "📣 Feedback"])
 
-study_hours = st.slider("📖 Study Hours", 0, 12, 5)
-play_hours  = st.slider("🎮 Play Hours", 0,  6, 2)
+# ------------------ TODAY TAB ------------------
+with today_tab:
+    st.markdown("👋 Welcome back! Let’s get your rhythm flowing today.")
+    st.title("🎧 Rhythm – Your Smart Daily Planner")
+    st.markdown("Enter your daily routine and emotion to generate your personalized schedule.")
 
-emotion = st.selectbox("🧠 How do you feel today?", ["Happy", "Motivated", "Sad", "Tired"])
-goal    = st.selectbox("🎯 Your Goal", ["Exam Prep", "Skill Learning", "Health", "Consistency"])
+    # Your input widgets go here 👇
+    wake_time = st.time_input("⏰ Wake‑up Time", value=datetime.strptime("06:00", "%H:%M").time())
+    sleep_time = st.time_input("🌙 Sleep Time", value=datetime.strptime("22:00", "%H:%M").time())
+    study_hours = st.slider("📖 Study Hours", 0, 12, 5)
+    play_hours = st.slider("🎮 Play Hours", 0, 6, 2)
 
-st.markdown("### 💬 Want to share how you're feeling today?")
-user_problem = st.text_input("Tell Rhythm what’s on your mind:")
+    emotion = st.selectbox("🧠 How do you feel today?", ["Happy", "Motivated", "Sad", "Tired"])
+    goal = st.selectbox("🎯 Your Goal", ["Exam Prep", "Skill Learning", "Health", "Consistency"])
+
+    st.markdown("### 💬 Want to share how you're feeling today?")
+    user_problem = st.text_input("Tell Rhythm what’s on your mind:")
+
 
 from textblob import TextBlob
 
@@ -221,6 +228,13 @@ for i in range(len(time_blocks)):
         "Time": time_blocks[i],
         "Activity": activities[i]
     })
+# ------------------ FEEDBACK TAB ------------------
+with feedback_tab:
+    st.header("📣 We'd love your feedback!")
+    st.markdown("**Share your thoughts — it only takes 30 seconds.**")
+
+    # Option 1: Clickable form link
+    st.markdown("[📝 Open Feedback Form](https://forms.gle/5GagUQeUxbv8odUW9)")
 
 
 
