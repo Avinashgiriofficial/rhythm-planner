@@ -1,3 +1,4 @@
+🌍 Try it live: [rhythm-planner.streamlit.app](https://rhythm-planner-erk6rttmjtxcbh8d4vkat8.streamlit.app/)
 # rhythm-planner
 An emotional and personalized daily planning tool for students.
 # 🎧 Rhythm – v1 Beta Release
