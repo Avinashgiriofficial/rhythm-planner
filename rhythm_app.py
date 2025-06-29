@@ -1,116 +1,229 @@
-
-#BASIC DESIGN OF RHYTHM HOW IT WILL GOING TO WORK !!!
-
-
+# BETA VERSION OF MY RHYTHM
 import streamlit as st
-from datetime import datetime, timedelta
-st.markdown(f"👋 Welcome back! Let’s get your rhythm flowing today.")
+from datetime import datetime, date, timedelta
+from streamlit_calendar import calendar
+import pandas as pd
+import os
 
-st.set_page_config(page_title="Rhythm - Your Daily Planner", layout="centered")
+# -------------- PAGE CONFIG (must be first) -----------------
+st.set_page_config(page_title="Rhythm – Your Daily Planner", layout="centered")
 
+# ----------------- CALENDAR WIDGET --------------------------
+st.markdown("### 📅 Your Monthly Calendar")
+calendar(
+    events=[{
+        "title": "Today",
+        "start": date.today().isoformat(),
+        "end": date.today().isoformat(),
+        "color": "#ff6f61"
+    }],
+    options={"initialView": "dayGridMonth"},
+    custom_css="""
+        .fc .fc-daygrid-day.fc-day-today {
+            background-color: #ffe2dc;
+            border: 2px solid #ff6f61;
+        }
+    """
+)
+
+# ----------------- HEADER / INPUTS --------------------------
+st.markdown("👋 Welcome back! Let’s get your rhythm flowing today.")
 st.title("🎧 Rhythm – Your Smart Daily Planner")
 st.markdown("Enter your daily routine and emotion to generate your personalized schedule.")
 
+wake_time  = st.time_input("⏰ Wake‑up Time",  value=datetime.strptime("06:00", "%H:%M").time())
+sleep_time = st.time_input("🌙 Sleep Time",    value=datetime.strptime("22:00", "%H:%M").time())
 
+study_hours = st.slider("📖 Study Hours", 0, 12, 5)
+play_hours  = st.slider("🎮 Play Hours", 0,  6, 2)
 
-
-
-# 1. INPUTS (keep outside the button)
-
-wake_time = st.time_input("⏰ Wake-up Time", value=datetime.strptime("06:00", "%H:%M").time(), key="wake_time")
-sleep_time = st.time_input("🌙 Sleep Time", value=datetime.strptime("22:00", "%H:%M").time(), key="sleep_time")
-
-study_hours = st.slider("📖 Study Hours", 0, 12, 5 , key = "study_hours")
-play_hours = st.slider("🎮 Play Hours", 0, 6, 2 , key="play_hours")
-
-emotion = st.selectbox("🧠 How do you feel today?", ["Happy", "Motivated", "Sad", "Tired"] , key="emotion")
-goal = st.selectbox("🎯 Your Goal", ["Exam Prep", "Skill Learning", "Health", "Consistency"], key="goal")
+emotion = st.selectbox("🧠 How do you feel today?", ["Happy", "Motivated", "Sad", "Tired"])
+goal    = st.selectbox("🎯 Your Goal", ["Exam Prep", "Skill Learning", "Health", "Consistency"])
 
 st.markdown("### 💬 Want to share how you're feeling today?")
-user_problem = st.text_input("Tell Rhythm what’s on your mind:",key="user_problem")
+user_problem = st.text_input("Tell Rhythm what’s on your mind:")
+
+from textblob import TextBlob
+
+def generate_response(text, mood):
+    text = text.lower()
+    sentiment = TextBlob(text).sentiment.polarity
+
+    if not text.strip():
+        return None
+
+    # Mood-based empathy
+    if sentiment < -0.3:
+        return "💛 It's okay to feel low. Let's take small, kind steps today."
+
+    # Keyword-based tips
+    elif "lazy" in text or "unmotivated" in text:
+        return "💡 Start with just 5 minutes. Action brings motivation, not the other way around."
+
+    elif "missed" in text or "yesterday" in text:
+        return "🔁 Yesterday is over. Restart strong today. You're not behind — you're learning."
+
+    elif "tired" in text or "exhausted" in text:
+        return "😴 A short nap, water, and a reset can do wonders. Energy matters more than hours."
+
+    elif "pressure" in text or "overwhelmed" in text:
+        return "🌿 Break the big goal into tiny wins. One thing at a time."
+
+    elif "phone" in text or "distraction" in text:
+        return "📵 Try putting your phone away for just 30 minutes. You'll feel clarity quickly."
+
+    elif "anxious" in text or "fear" in text:
+        return "🧘 Deep breaths. Remember — your effort is enough. You're not alone."
+
+    elif "confused" in text or "don't know what to study" in text:
+        return "🎯 Pick the smallest topic. Start there. Clarity comes after action."
+
+    # Emotion-specific override
+    elif mood == "Tired":
+        return "Take it slow today. Even a little progress counts."
+
+    elif mood == "Motivated":
+        return "You're on fire today 🔥 Let’s use that momentum with full focus!"
+
+    elif sentiment > 0.5:
+        return "You're sounding positive! Let's lock that in and make today productive. 💪"
+
+    return "✨ Thanks for sharing. You’re doing better than you think. Let’s go one task at a time."
 
 
-# 2. GENERATE ONLY ON BUTTON
+# ------------------ MAIN ACTION BUTTON ----------------------
 
 if st.button("✅ Generate My Daily Plan"):
+    # Smart reply after user shares a problem
+    if user_problem:
+        coach_reply = generate_response(user_problem, emotion)
+    if coach_reply:
+        st.markdown("### 💬 Rhythm’s Response")
+        st.success(coach_reply)
 
-    wake = datetime.combine(datetime.today(), wake_time)
-    sleep = datetime.combine(datetime.today(), sleep_time)
-    total_hours = int((sleep - wake).seconds // 3600)
+    # --- Convert times into full datetimes ---
+    today    = datetime.today()
+    wake_dt  = datetime.combine(today, wake_time)
+    sleep_dt = datetime.combine(today, sleep_time)
+    if sleep_dt <= wake_dt:            # handle overnight schedules
+        sleep_dt += timedelta(days=1)
+# 👇 Add this before log_entry
+    reflection_mood = st.radio("How did your day feel overall?", ["😊 Great", "😐 Okay", "😞 Tough"], key="reflection_mood")
+    reflection_note = st.text_area("Any thoughts you'd like to share?", placeholder="Felt productive / Got distracted / etc.", key="reflection_note")
 
-    current_time = wake
-    plan = []
 
-    # Motivation message
+ # ---------------- SAVE DAILY LOG ------------------------
+    
+    
+    log_entry = {
+        "Date": today.strftime("%Y-%m-%d"),
+        "Wake": wake_time.strftime("%H:%M"),
+        "Sleep": sleep_time.strftime("%H:%M"),
+        "Study Hours": study_hours,
+        "Play Hours": play_hours,
+        "Emotion": emotion,
+        "Goal": goal,
+        "Problem": user_problem,
+        "Motivational Quote": "You don’t have to be extreme. Just consistent.",
+        "Reflection Mood": reflection_mood,
+        "Reflection Note": reflection_note
+        
+        }
+
+    file_path = "rhythm_user_log.csv"
+    df_entry  = pd.DataFrame([log_entry])
+    df_entry.to_csv(file_path, mode='a', header=not os.path.exists(file_path), index=False)
+    st.success("✅ Your data has been saved!")
+    
+
+    # ---------------- MOTIVATION BLOCK ----------------------
+    
     messages = {
-        "Sad": "💛 You said you're feeling low today. That’s okay. Let’s take one steady step at a time.",
-        "Happy": "🌟 You’re glowing today! Let’s lock in that focus and do something amazing.",
-        "Tired": "😴 Energy is low, but you showed up. That’s everything. Let’s go gently.",
+        "Sad":       "💛 You said you're feeling low today. That’s okay. Let’s take one steady step at a time.",
+        "Happy":     "🌟 You’re glowing today! Let’s lock in that focus and do something amazing.",
+        "Tired":     "😴 Energy is low, but you showed up. That’s everything. Let’s go gently.",
         "Motivated": "🔥 You’re on fire today. We’ll match your energy with a focused plan."
     }
-
     st.markdown(f"### 💬 Motivation: {messages.get(emotion)}")
 
-    # Problem-based quote
-    problem = user_problem.lower()
-    if "lazy" in problem or "unmotivated" in problem:
-        st.info("💡 Discipline > Motivation. Just start with one small task.")
-        st.success("Quote: 'You don’t have to be extreme. Just consistent.'")
-    elif "missed" in problem or "yesterday" in problem:
-        st.info("🕊️ One off day doesn’t define you. Showing up today matters most.")
-        st.success("Quote: 'Start again. You’re still in the game.'")
-    elif "pressure" in problem or "overwhelmed" in problem:
-        st.info("🌿 Pressure fades with clarity. Let’s break the day into small wins.")
-        st.success("Quote: 'Progress is peace. Not perfection.'")
-    elif "tired" in problem or "exhausted" in problem:
-        st.info("😴 Rest isn’t failure. You’ve come far. We’ll go easy today.")
-        st.success("Quote: 'Even a step forward while tired is strength.'")
-    elif problem != "":
-        st.info("🧠 Thanks for sharing. Rhythm is with you today.")
-        st.success("Quote: 'Show up. Adjust. Win anyway.'")
-
-    # New scheduler logic (with balance)
+    
+    # (keep your problem‑specific quote logic here if desired)
+    # --------------- BUILD THE HOURLY PLAN ------------------
+    
+    
     remaining_study = study_hours
-    remaining_play = play_hours
-    remaining_break = 2
-    study_chunk = 0
+    remaining_play  = play_hours
+    remaining_break = 2          # two breaks to sprinkle in
+    study_chunk     = 0
+    current_time    = wake_dt
+    plan            = []
 
-    def add_hour_block(activity):
-        global current_time
-        end_time = current_time + timedelta(hours=1)
-        plan.append({
-            "Time": f"{current_time.strftime('%I:%M %p')} - {end_time.strftime('%I:%M %p')}",
-            "Activity": activity
-        })
-        current_time = end_time
+    def add_hour_block(current_time, activity):
+         end_time = current_time + timedelta(hours=1)
+         plan.append({
+        "Time": f"{current_time.strftime('%I:%M %p')} – {end_time.strftime('%I:%M %p')}",
+        "Activity": activity
+    })
+         return end_time
+    
 
-    while current_time + timedelta(hours=1) <= sleep:
-        if remaining_study > 0:
-            add_hour_block("Study")
-            remaining_study -= 1
-            study_chunk += 1
+# ----------------Combine times to datetime--------------------------
 
-            if study_chunk == 2 and remaining_break > 0:
-                add_hour_block("Break")
-                remaining_break -= 1
-                study_chunk = 0
+today = datetime.today()    
+wake_dt = datetime.combine(today, wake_time)
+sleep_dt = datetime.combine(today, sleep_time)
+if sleep_dt <= wake_dt:
+    sleep_dt += timedelta(days=1)
 
-            elif study_chunk == 2 and remaining_play > 0:
-                add_hour_block("Play")
-                remaining_play -= 1
-                study_chunk = 0
+current_time = wake_dt  # ✅ This is required before using it below
+plan = []
 
-        elif remaining_play > 0:
-            add_hour_block("Play")
-            remaining_play -= 1
+def add_hour_block(current_time, activity):
+    end_time = current_time + timedelta(hours=1)
+    plan.append({
+        "Time": f"{current_time.strftime('%I:%M %p')} – {end_time.strftime('%I:%M %p')}",
+        "Activity": activity
+    })
+    return end_time
 
-        elif remaining_break > 0:
-            add_hour_block("Break")
-            remaining_break -= 1
 
-        else:
-            add_hour_block("Free/Flex")
+remaining_study = study_hours
+remaining_play = play_hours
+remaining_break = 2
+study_chunk = 0
 
-    # Show table
-    st.markdown("### 🗓️ Your Daily Plan")
-    st.table(plan)
+#------------------------SCHEDULING LOOP---------------------------
+
+from random import shuffle
+
+# Create all hourly blocks
+time_blocks = []
+t = wake_dt
+while t + timedelta(hours=1) <= sleep_dt:
+    time_blocks.append(t.strftime("%I:%M %p") + " - " + (t + timedelta(hours=1)).strftime("%I:%M %p"))
+    t += timedelta(hours=1)
+
+# Create the schedule plan
+activities = (["Study"] * remaining_study +
+              ["Play"] * remaining_play +
+              ["Break"] * remaining_break)
+
+# Fill rest with Flex
+activities += ["Free/Flex"] * (len(time_blocks) - len(activities))
+
+# Shuffle to avoid stacking Study only at morning
+shuffle(activities)
+
+# Now create the plan
+plan = []
+for i in range(len(time_blocks)):
+    plan.append({
+        "Time": time_blocks[i],
+        "Activity": activities[i]
+    })
+
+
+
+    # ------------------ SHOW THE PLAN ----------------------
+st.markdown("### 🗓️ Your Daily Plan")
+st.table(pd.DataFrame(plan))
