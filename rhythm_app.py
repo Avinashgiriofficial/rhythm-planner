@@ -8,7 +8,14 @@ import os
 
 # -------------- PAGE CONFIG (must be first) -----------------
 st.set_page_config(page_title="Rhythm – Your Daily Planner", layout="centered")
-st.info("⏳ Waking up... Please wait a few seconds while the app loads.")
+import time  # make sure this is at the top
+
+# Auto-hide loading message
+wait_msg = st.empty()  # Create a placeholder
+wait_msg.info("⏳ Waking up... Please wait a few seconds while the app loads.")
+time.sleep(3)  # Wait for 3 seconds
+wait_msg.empty()  # Remove the message
+
 
 # ----------------- CALENDAR WIDGET --------------------------
 st.markdown("### 📅 Your Monthly Calendar")
