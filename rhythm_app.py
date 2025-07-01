@@ -8,6 +8,7 @@ import os
 
 # -------------- PAGE CONFIG (must be first) -----------------
 st.set_page_config(page_title="Rhythm – Your Daily Planner", layout="centered")
+st.info("⏳ Waking up... Please wait a few seconds while the app loads.")
 
 # ----------------- CALENDAR WIDGET --------------------------
 st.markdown("### 📅 Your Monthly Calendar")
