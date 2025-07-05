@@ -1,16 +1,48 @@
-#---------BETA VERSION OF RHYTHM-------------
 
 import streamlit as st
 from datetime import datetime, date, timedelta
 from streamlit_calendar import calendar
 import pandas as pd
 import os
+import re
+
+#-------------ROUTINE PARSING FUNCTION----------------
+
+def parse_routine(text):
+    pattern = r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(.*?)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?"
+    matches = re.findall(pattern, text.lower())
+
+    events = []
+    for match in matches:
+        start_hour = int(match[0])
+        start_min  = int(match[1] or 0)
+        start_am_pm = match[2] or "am"
+        activity = match[3].strip()
+        end_hour = int(match[4])
+        end_min  = int(match[5] or 0)
+        end_am_pm = match[6] or "am"
+
+        if start_am_pm == "pm" and start_hour != 12:
+            start_hour += 12
+        if end_am_pm == "pm" and end_hour != 12:
+            end_hour += 12
+
+        start_time = datetime.combine(date.today(), datetime.strptime(f"{start_hour}:{start_min}", "%H:%M").time())
+        end_time = datetime.combine(date.today(), datetime.strptime(f"{end_hour}:{end_min}", "%H:%M").time())
+
+        events.append({
+            "Time": f"{start_time.strftime('%I:%M %p')} – {end_time.strftime('%I:%M %p')}",
+            "Activity": activity.title()
+        })
+
+    return events
+
 
 # -------------- PAGE CONFIG (must be first) -----------------
 st.set_page_config(page_title="Rhythm – Your Daily Planner", layout="centered")
 import time  # make sure this is at the top
 
-# Auto-hide loading message
+#-------------- Auto-hide loading message-----------------
 wait_msg = st.empty()  # Create a placeholder
 wait_msg.info("⏳ Waking up... Please wait a few seconds while the app loads.")
 time.sleep(3)  # Wait for 3 seconds
@@ -19,21 +51,26 @@ wait_msg.empty()  # Remove the message
 
 # ----------------- CALENDAR WIDGET --------------------------
 st.markdown("### 📅 Your Monthly Calendar")
-calendar(
-    events=[{
-        "title": "Today",
-        "start": date.today().isoformat(),
-        "end": date.today().isoformat(),
-        "color": "#ff6f61"
-    }],
-    options={"initialView": "dayGridMonth"},
-    custom_css="""
-        .fc .fc-daygrid-day.fc-day-today {
-            background-color: #ffe2dc;
-            border: 2px solid #ff6f61;
-        }
-    """
-)
+
+# Use columns to center and control width
+left, center, right = st.columns([1, 2, 1])  # Adjust ratio as needed
+
+with center:
+    calendar(
+        events=[{
+            "title": "Today",
+            "start": date.today().isoformat(),
+            "end": date.today().isoformat(),
+            "color": "#ff6f61"
+        }],
+        options={"initialView": "dayGridMonth"},
+        custom_css="""
+            .fc .fc-daygrid-day.fc-day-today {
+                background-color: #ffe2dc;
+                border: 2px solid #ff6f61;
+            }
+        """
+    )
 
 # ----------------- HEADER / INPUTS --------------------------
 
@@ -50,12 +87,22 @@ with today_tab:
     sleep_time = st.time_input("🌙 Sleep Time", value=datetime.strptime("22:00", "%H:%M").time())
     study_hours = st.slider("📖 Study Hours", 0, 12, 5)
     play_hours = st.slider("🎮 Play Hours", 0, 6, 2)
+    # Declare globally usable times
+today = datetime.today()
+wake_dt = datetime.combine(today, wake_time)
+sleep_dt = datetime.combine(today, sleep_time)
+if sleep_dt <= wake_dt:
+    sleep_dt += timedelta(days=1)
+emotion = st.selectbox("🧠 How do you feel today?", ["Happy", "Motivated", "Sad", "Tired"])
+goal = st.selectbox("🎯 Your Goal", ["Exam Prep", "Skill Learning", "Health", "Consistency"])
+st.markdown("### ✍️ Or Describe Your Routine in Your Own Words")
+routine_input = st.text_area(
+    "Describe your daily schedule here (e.g. I wake at 7, school 8–2, study 4–6...):",
+    placeholder="Write your routine here..."
+)
 
-    emotion = st.selectbox("🧠 How do you feel today?", ["Happy", "Motivated", "Sad", "Tired"])
-    goal = st.selectbox("🎯 Your Goal", ["Exam Prep", "Skill Learning", "Health", "Consistency"])
-
-    st.markdown("### 💬 Want to share how you're feeling today?")
-    user_problem = st.text_input("Tell Rhythm what’s on your mind:")
+st.markdown("### 🎯 What's your main focus today?")
+daily_goal = st.text_input("Enter a goal or task you want to complete today:")
 
 
 from textblob import TextBlob
@@ -109,12 +156,15 @@ def generate_response(text, mood):
 # ------------------ MAIN ACTION BUTTON ----------------------
 
 if st.button("✅ Generate My Daily Plan"):
-    # Smart reply after user shares a problem
-    if user_problem:
-        coach_reply = generate_response(user_problem, emotion)
-    if coach_reply:
-        st.markdown("### 💬 Rhythm’s Response")
-        st.success(coach_reply)
+   coach_reply = None  # Initialize the variable
+
+if daily_goal:
+    coach_reply = generate_response(daily_goal, emotion)
+
+if coach_reply:
+    st.markdown("### 💬 Rhythm’s Response")
+    st.success(coach_reply)
+
 
     # --- Convert times into full datetimes ---
     today    = datetime.today()
@@ -122,9 +172,6 @@ if st.button("✅ Generate My Daily Plan"):
     sleep_dt = datetime.combine(today, sleep_time)
     if sleep_dt <= wake_dt:            # handle overnight schedules
         sleep_dt += timedelta(days=1)
-# 👇 Add this before log_entry
-    reflection_mood = st.radio("How did your day feel overall?", ["😊 Great", "😐 Okay", "😞 Tough"], key="reflection_mood")
-    reflection_note = st.text_area("Any thoughts you'd like to share?", placeholder="Felt productive / Got distracted / etc.", key="reflection_note")
 
 
  # ---------------- SAVE DAILY LOG ------------------------
@@ -138,10 +185,9 @@ if st.button("✅ Generate My Daily Plan"):
         "Play Hours": play_hours,
         "Emotion": emotion,
         "Goal": goal,
-        "Problem": user_problem,
-        "Motivational Quote": "You don’t have to be extreme. Just consistent.",
-        "Reflection Mood": reflection_mood,
-        "Reflection Note": reflection_note
+        "Goal Focus": daily_goal,
+        "Motivational Quote": "You don’t have to be extreme. Just consistent."
+       
         
         }
 
@@ -249,3 +295,12 @@ with feedback_tab:
     # ------------------ SHOW THE PLAN ----------------------
 st.markdown("### 🗓️ Your Daily Plan")
 st.table(pd.DataFrame(plan))
+
+
+#-----------EXAMPLE INPUT --------------
+
+#I wake up at 6:30 am. 
+#I go to school from 8:00 am to 2:00 pm. 
+#I study from 4:00 pm to 6:00 pm. 
+#I play from 6:30 pm to 8:00 pm. 
+#I go to bed at 10:00 pm.
