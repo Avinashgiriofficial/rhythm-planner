@@ -156,14 +156,14 @@ def generate_response(text, mood):
 # ------------------ MAIN ACTION BUTTON ----------------------
 
 if st.button("✅ Generate My Daily Plan"):
-   coach_reply = None  # Initialize the variable
+    coach_reply = None  # Initialize the variable
 
-if daily_goal:
-    coach_reply = generate_response(daily_goal, emotion)
+    if daily_goal:
+        coach_reply = generate_response(daily_goal, emotion)
 
-if coach_reply:
-    st.markdown("### 💬 Rhythm’s Response")
-    st.success(coach_reply)
+    if coach_reply:
+        st.markdown("### 💬 Rhythm’s Response")
+        st.success(coach_reply)
 
 
     # --- Convert times into full datetimes ---
